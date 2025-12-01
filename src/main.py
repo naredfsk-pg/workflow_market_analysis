@@ -2,11 +2,24 @@ from data_fetcher import DataFetcher
 from chart_generator import ChartGenerator
 from llm_analyzer import LLMAnalyzer
 from line_notifier import LineNotifier
-import os
+from market_schedule import MarketSchedule
+from datetime import datetime, timezone, timedelta
 
 
 def main():
+    # Check if today is a trading day
+    schedule = MarketSchedule()
+    if not schedule.is_trading_day():
+        print("Today is not a trading day. Skipping analysis.")
+        return
+
     print("🚀 Starting NVDA Advanced Analysis...")
+
+    # Get current time in Thailand
+    th_tz = timezone(timedelta(hours=7))
+    now = datetime.now(th_tz)
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M:%S")
 
     fetcher = DataFetcher("NVDA")
     df_1d = fetcher.get_stock_data(period="1d", interval="5m")
@@ -45,7 +58,9 @@ def main():
     print("📱 Sending to Line...")
     notifier = LineNotifier()
 
-    final_message = f"🔥 NVDA Strategic Plan 🔥\n\n{analysis_result}"
+    final_message = (
+        f"🔥 NVDA Strategic Plan 🔥\n📅 {date_str} ⏰ {time_str}\n\n{analysis_result}"
+    )
 
     news_summary = f"News Summary:\n\n{news_summary}"
 
