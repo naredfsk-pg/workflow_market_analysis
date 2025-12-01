@@ -1,0 +1,31 @@
+name: Daily NVDA Analysis
+
+on:
+  schedule:
+    # Run at 11:00 UTC (which is 18:00 Thai time) every Monday to Friday (1-5)
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch: # Allow manual trigger (Run workflow button)
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Analysis
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        LINE_NOTIFY_TOKEN: ${{ secrets.LINE_NOTIFY_TOKEN }}
+      run: python src/main.py
