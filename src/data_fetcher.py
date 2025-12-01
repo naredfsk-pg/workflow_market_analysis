@@ -34,6 +34,41 @@ class DataFetcher:
             "change_percent": change_percent,
         }
 
+    def get_extended_hours_data(self):
+        """ดึงข้อมูล Pre-market และ Post-market (After Hours)"""
+        info = self.stock.info
+
+        # Previous close (ราคาปิดวันก่อนหน้า)
+        previous_close = info.get("previousClose", info.get("regularMarketPreviousClose"))
+
+        # Pre-market data
+        pre_market_price = info.get("preMarketPrice")
+        pre_market_change = info.get("preMarketChange")
+        pre_market_change_percent = info.get("preMarketChangePercent")
+
+        # Post-market data (After Hours)
+        post_market_price = info.get("postMarketPrice")
+        post_market_change = info.get("postMarketChange")
+        post_market_change_percent = info.get("postMarketChangePercent")
+
+        # Regular market data
+        regular_market_price = info.get("regularMarketPrice")
+
+        return {
+            "previous_close": previous_close,
+            "regular_market_price": regular_market_price,
+            "pre_market": {
+                "price": pre_market_price,
+                "change": pre_market_change,
+                "change_percent": pre_market_change_percent * 100 if pre_market_change_percent else None,
+            },
+            "post_market": {
+                "price": post_market_price,
+                "change": post_market_change,
+                "change_percent": post_market_change_percent * 100 if post_market_change_percent else None,
+            },
+        }
+
     def get_recent_news(self, days=3):
         googlenews = GoogleNews(lang="en", region="US")
         googlenews.set_period(f"{days}d")

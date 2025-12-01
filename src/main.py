@@ -13,6 +13,7 @@ def main():
     df_5d = fetcher.get_stock_data(period="5d", interval="1h")
 
     market_status = fetcher.get_market_status()
+    extended_hours = fetcher.get_extended_hours_data()
 
     raw_news = fetcher.get_news_with_content(limit=5)
 
@@ -32,7 +33,7 @@ def main():
         print("-" * 100)
 
         analysis_result = analyzer.analyze(
-            market_status, news_summary, [path_1d, path_5d]
+            market_status, extended_hours, news_summary, [path_1d, path_5d]
         )
         print("Final Analysis Complete.")
         print("-" * 100)
@@ -45,6 +46,10 @@ def main():
     notifier = LineNotifier()
 
     final_message = f"🔥 NVDA Strategic Plan 🔥\n\n{analysis_result}"
+
+    news_summary = f"News Summary:\n\n{news_summary}"
+
+    notifier.send(news_summary, [path_1d, path_5d])
 
     notifier.send(final_message, [path_1d, path_5d])
     print("Done!")

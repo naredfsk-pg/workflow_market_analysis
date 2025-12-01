@@ -42,8 +42,24 @@ class LLMAnalyzer:
         response = self.model.generate_content(summary_prompt)
         return response.text
 
-    def analyze(self, market_data, summarized_news, image_paths):
+    def analyze(self, market_data, extended_hours, summarized_news, image_paths):
         print("Generating final analysis...")
+
+        # สร้างข้อความ Pre-market
+        pre_market_info = ""
+        if extended_hours["pre_market"]["price"]:
+            pre_market_info = f"""
+        📈 Pre-Market:
+        - ราคา Pre-market: {extended_hours['pre_market']['price']:.2f}
+        - การเปลี่ยนแปลง: {extended_hours['pre_market']['change']:.2f} ({extended_hours['pre_market']['change_percent']:.2f}%)"""
+
+        # สร้างข้อความ Post-market (After Hours)
+        post_market_info = ""
+        if extended_hours["post_market"]["price"]:
+            post_market_info = f"""
+        🌙 After Hours (Post-Market):
+        - ราคา After Hours: {extended_hours['post_market']['price']:.2f}
+        - การเปลี่ยนแปลง: {extended_hours['post_market']['change']:.2f} ({extended_hours['post_market']['change_percent']:.2f}%)"""
 
         prompt = f"""
         Role: คุณคือ AI Financial Analyst ผู้เชี่ยวชาญด้าน Technical Analysis และ Options Trading
@@ -51,8 +67,10 @@ class LLMAnalyzer:
 
         Market Context:
         - ราคาปิดล่าสุด (Previous Close): {market_data['last_close']:.2f}
-        - ราคาปัจจุบัน/Pre-market: {market_data['current_price']:.2f}
+        - ราคาปัจจุบัน (Regular Market): {market_data['current_price']:.2f}
         - การเปลี่ยนแปลง: {market_data['change_percent']:.2f}%
+        {pre_market_info}
+        {post_market_info}
 
         Recent News (Analyzed):
         {summarized_news}
@@ -60,11 +78,13 @@ class LLMAnalyzer:
         คำสั่ง:
         วิเคราะห์จากกราฟที่แนบมา (1 Day และ 5 Days) และข้อมูลข้างต้น เพื่อตอบคำถาม 2 ข้อนี้ (ภาษาไทย):
 
+        สำคัญ: หากมีข้อมูล Pre-market หรือ After Hours ให้นำมาวิเคราะห์ด้วย เพราะเป็นสัญญาณที่บ่งบอกทิศทางของตลาดก่อนเปิด
+
         1. แผนการเล่น Option (ระยะสั้น < 7 วัน):
-           - แนวโน้ม (Bullish/Bearish)
+           - แนวโน้ม (Bullish/Bearish) พร้อมอธิบายเหตุผลจาก Pre-market/After Hours (ถ้ามี)
            - ควรเข้าสถานะ (CALL/PUT) ที่ Strike Price เท่าไหร่
            - จุดเข้า (Entry) และ จุดออก (Exit/Stop Loss)
-           
+
         2. แผนการลงทุนระยะยาว (DCA):
            - ควรซื้อเพิ่มตอนนี้เลยหรือไม่ หรือควรรอแนวรับที่เท่าไหร่
 
