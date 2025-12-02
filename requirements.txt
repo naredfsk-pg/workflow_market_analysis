@@ -1,0 +1,9 @@
+yfinance
+mplfinance
+google-generativeai
+GoogleNews
+python-dotenv
+pandas
+requests
+line-bot-sdk
+trafilatura

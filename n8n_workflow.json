@@ -1,0 +1,51 @@
+{
+  "name": "Stock Analysis Schedule",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18,
+              "triggerAtMinute": 0
+            },
+            {
+              "triggerAtHour": 21,
+              "triggerAtMinute": 0
+            }
+          ]
+        },
+        "triggerInterval": "weeks",
+        "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [460, 240]
+    },
+    {
+      "parameters": {
+        "command": "python /data/script/src/main.py"
+      },
+      "id": "execute-script",
+      "name": "Execute Python Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 240]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Execute Python Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
