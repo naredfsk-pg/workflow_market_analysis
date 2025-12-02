@@ -20,7 +20,7 @@
       },
       "id": "schedule-trigger",
       "name": "Schedule",
-      "type": "n8n-nodes-base.schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
       "position": [460, 240]
     },
