@@ -7,15 +7,13 @@ from datetime import datetime, timezone, timedelta
 
 
 def main():
-    # Check if today is a trading day
     schedule = MarketSchedule()
     if not schedule.is_trading_day():
         print("Today is not a trading day. Skipping analysis.")
         return
 
-    print("🚀 Starting NVDA Advanced Analysis...")
+    print("Starting NVDA Advanced Analysis...")
 
-    # Get current time in Thailand
     th_tz = timezone(timedelta(hours=7))
     now = datetime.now(th_tz)
     date_str = now.strftime("%Y-%m-%d")
@@ -29,18 +27,25 @@ def main():
     extended_hours = fetcher.get_extended_hours_data()
 
     raw_news = fetcher.get_news_with_content(limit=5)
+    market_news = fetcher.get_market_news(limit=3)
 
     chart_gen = ChartGenerator()
     path_1d = chart_gen.generate_chart(df_1d, "nvda_1d.png", "NVDA 1 Day (5m)")
     path_5d = chart_gen.generate_chart(df_5d, "nvda_5d.png", "NVDA 5 Days (1h)")
 
+    news_summary = "ไม่มีข่าวสำคัญในช่วง 3 วันที่ผ่านมา"
+    analysis_result = "ไม่สามารถวิเคราะห์ได้"
+
     try:
         analyzer = LLMAnalyzer()
 
-        if raw_news:
-            news_summary = analyzer.summarize_news(raw_news)
-        else:
-            news_summary = "ไม่มีข่าวสำคัญในช่วง 3 วันที่ผ่านมา"
+        all_news = raw_news + market_news
+        if all_news:
+            try:
+                news_summary = analyzer.summarize_news(all_news)
+            except Exception as e:
+                print(f"Error summarizing news: {e}")
+                news_summary = "ไม่สามารถสรุปข่าวได้"
 
         print("News Summarized:\n", news_summary)
         print("-" * 100)
@@ -52,20 +57,18 @@ def main():
         print("-" * 100)
 
     except Exception as e:
-        analysis_result = f"Error during analysis: {str(e)}"
-        print(analysis_result)
+        print(f"Error during analysis: {e}")
 
-    print("📱 Sending to Line...")
+    print("Sending to Line...")
     notifier = LineNotifier()
 
     final_message = (
-        f"🔥 NVDA Strategic Plan 🔥\n📅 {date_str} ⏰ {time_str}\n\n{analysis_result}"
+        f"NVDA Strategic Plan\n{date_str} {time_str}\n\n{analysis_result}"
     )
 
-    news_summary = f"News Summary:\n\n{news_summary}"
+    news_summary = f"{date_str} {time_str}\nNews Summary:\n\n{news_summary}"
 
-    notifier.send(news_summary, [path_1d, path_5d])
-
+    notifier.send(news_summary)
     notifier.send(final_message, [path_1d, path_5d])
     print("Done!")
 

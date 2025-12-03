@@ -1,7 +1,5 @@
 import yfinance as yf
 from GoogleNews import GoogleNews
-import pandas as pd
-from datetime import datetime, timedelta
 import trafilatura
 from urllib.parse import urlparse, parse_qs
 
@@ -35,23 +33,18 @@ class DataFetcher:
         }
 
     def get_extended_hours_data(self):
-        """ดึงข้อมูล Pre-market และ Post-market (After Hours)"""
         info = self.stock.info
 
-        # Previous close (ราคาปิดวันก่อนหน้า)
         previous_close = info.get("previousClose", info.get("regularMarketPreviousClose"))
 
-        # Pre-market data
         pre_market_price = info.get("preMarketPrice")
         pre_market_change = info.get("preMarketChange")
         pre_market_change_percent = info.get("preMarketChangePercent")
 
-        # Post-market data (After Hours)
         post_market_price = info.get("postMarketPrice")
         post_market_change = info.get("postMarketChange")
         post_market_change_percent = info.get("postMarketChangePercent")
 
-        # Regular market data
         regular_market_price = info.get("regularMarketPrice")
 
         return {
@@ -82,18 +75,13 @@ class DataFetcher:
         return "\n".join(news_list)
 
     def clean_google_url(self, url):
-        """ล้าง Tracking Params ของ Google ออกจาก URL"""
         try:
-            # กรณี 1: เป็น Link redirect ของ google (google.com/url?q=...)
             if "google.com/url" in url:
                 parsed = urlparse(url)
                 params = parse_qs(parsed.query)
                 if "q" in params:
                     url = params["q"][0]
 
-            # กรณี 2: มี params &ved, &usg ต่อท้าย (เหมือนใน log ของคุณ)
-            # ตัดทิ้งตั้งแต่เครื่องหมาย & ตัวแรกที่เจอหลังจากจบ URL ปกติ
-            # วิธีบ้านๆ แต่ได้ผลคือ split เอาแค่ส่วนหน้า
             if "&ved=" in url:
                 url = url.split("&ved=")[0]
             if "&usg=" in url:
@@ -104,10 +92,9 @@ class DataFetcher:
             return url
 
     def get_news_with_content(self, days=3, limit=5):
-        print(f"🕵️‍♂️ Searching news for {self.ticker}...")
+        print(f"Searching news for {self.ticker}...")
         googlenews = GoogleNews(lang="en", region="US")
         googlenews.set_period(f"{days}d")
-        # encode=True ช่วยเรื่องภาษาแปลกๆ ได้บ้าง แต่ถ้า Error บ่อยลองเอาออกได้
         googlenews.search(f"{self.ticker} stock")
         results = googlenews.result()
 
@@ -118,17 +105,13 @@ class DataFetcher:
             if count >= limit:
                 break
 
-            # --- เรียกใช้ฟังก์ชันล้างลิงก์ตรงนี้ ---
             raw_url = news["link"]
             url = self.clean_google_url(raw_url)
-            # ----------------------------------
-
             title = news["title"]
 
-            print(f"Processing: {url}")  # Print ดูว่าลิงก์สะอาดหรือยัง
+            print(f"Processing: {url}")
 
             try:
-                # เพิ่ม config ให้ trafilatura เนียนขึ้น
                 downloaded = trafilatura.fetch_url(url)
 
                 if downloaded:
@@ -136,7 +119,7 @@ class DataFetcher:
 
                     if content and len(content) > 100:
                         news_data.append(
-                            {"title": title, "url": url, "content": content[:3000]}
+                            {"title": title, "url": url, "content": content[:3000], "category": "stock"}
                         )
                         count += 1
                 else:
@@ -147,3 +130,49 @@ class DataFetcher:
                 continue
 
         return news_data
+
+    def get_market_news(self, days=3, limit=3):
+        topics = [
+            ("US economy Fed interest rates", "economy"),
+            ("NASDAQ stock market", "nasdaq"),
+        ]
+
+        all_news = []
+
+        for query, category in topics:
+            print(f"Searching news for {query}...")
+            googlenews = GoogleNews(lang="en", region="US")
+            googlenews.set_period(f"{days}d")
+            googlenews.search(query)
+            results = googlenews.result()
+
+            count = 0
+            for news in results:
+                if count >= limit:
+                    break
+
+                raw_url = news["link"]
+                url = self.clean_google_url(raw_url)
+                title = news["title"]
+
+                print(f"Processing: {url}")
+
+                try:
+                    downloaded = trafilatura.fetch_url(url)
+
+                    if downloaded:
+                        content = trafilatura.extract(downloaded)
+
+                        if content and len(content) > 100:
+                            all_news.append(
+                                {"title": title, "url": url, "content": content[:2000], "category": category}
+                            )
+                            count += 1
+                    else:
+                        print(f"Empty response from {url}")
+
+                except Exception as e:
+                    print(f"Failed to scrape {url}: {e}")
+                    continue
+
+        return all_news

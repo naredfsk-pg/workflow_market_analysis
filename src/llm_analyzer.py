@@ -11,53 +11,86 @@ class LLMAnalyzer:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
 
         genai.configure(api_key=api_key)
+        self.safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
         self.model = genai.GenerativeModel("gemini-2.5-flash")
 
     def summarize_news(self, news_items):
-
         print("Summarizing news contents...")
 
         raw_text = ""
         for i, news in enumerate(news_items):
-            raw_text += f"News {i+1}: {news['title']}\nContent: {news['content']}\n\n"
+            category = news.get("category", "stock")
+            raw_text += f"News {i+1} [{category.upper()}]: {news['title']}\nContent: {news['content']}\n\n"
 
         summary_prompt = f"""
         Role: Senior Financial News Editor
-        Task: Read the following {len(news_items)} news articles about NVDA and summarize them.
-        
+        Task: Read the following {len(news_items)} news articles and summarize them.
+
+        News Categories:
+        - STOCK: ข่าวเกี่ยวกับ NVDA โดยตรง
+        - ECONOMY: ข่าวเศรษฐกิจสหรัฐ (Fed, Interest Rates, Inflation)
+        - NASDAQ: ข่าวตลาด NASDAQ และ Tech Sector
+
         Constraints:
-        1. Focus ONLY on factors affecting stock price (Earnings, Competitors, Analyst Ratings, Macroeconomics).
-        2. Ignore general fluff or intro/outro text.
-        3. Extract hard numbers if available (Revenue, Price Target, % Growth).
-        4. Detect Sentiment (Positive/Negative) for each news.
-        
+        1. Focus ONLY on factors affecting NVDA stock price.
+        2. For ECONOMY news: Focus on Fed policy, interest rates, inflation that could impact tech stocks.
+        3. For NASDAQ news: Focus on overall tech sector trends.
+        4. Extract hard numbers if available (Revenue, Price Target, % Growth, Interest Rates).
+        5. Detect Sentiment (Positive/Negative) for each news.
+
         Input News:
         {raw_text}
-        
-        Output Format (Strictly follow this pattern for each news):
+
+        Output Format (Strictly follow this pattern, group by category):
+
+        NVDA News:
+        idx. [Title]
+           - Summary: [Your sharp summary in Thai language]
+
+        US Economy:
+        idx. [Title]
+           - Summary: [Your sharp summary in Thai language]
+
+        NASDAQ/Tech Sector:
         idx. [Title]
            - Summary: [Your sharp summary in Thai language]
         """
 
-        response = self.model.generate_content(summary_prompt)
-        return response.text
+        response = self.model.generate_content(
+            summary_prompt,
+            safety_settings=self.safety_settings
+        )
+        return self._get_response_text(response)
+
+    def _get_response_text(self, response):
+        try:
+            return response.text
+        except ValueError:
+            if response.candidates:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    return candidate.content.parts[0].text
+            return "ไม่สามารถสร้างข้อความได้"
 
     def analyze(self, market_data, extended_hours, summarized_news, image_paths):
         print("Generating final analysis...")
 
-        # สร้างข้อความ Pre-market
         pre_market_info = ""
         if extended_hours["pre_market"]["price"]:
             pre_market_info = f"""
-        📈 Pre-Market:
+        Pre-Market:
         - ราคา Pre-market: {extended_hours['pre_market']['price']:.2f}
         - การเปลี่ยนแปลง: {extended_hours['pre_market']['change']:.2f} ({extended_hours['pre_market']['change_percent']:.2f}%)"""
 
-        # สร้างข้อความ Post-market (After Hours)
         post_market_info = ""
         if extended_hours["post_market"]["price"]:
             post_market_info = f"""
-        🌙 After Hours (Post-Market):
+        After Hours (Post-Market):
         - ราคา After Hours: {extended_hours['post_market']['price']:.2f}
         - การเปลี่ยนแปลง: {extended_hours['post_market']['change']:.2f} ({extended_hours['post_market']['change_percent']:.2f}%)"""
 
@@ -96,5 +129,8 @@ class LLMAnalyzer:
             if img_path:
                 contents.append(genai.upload_file(img_path))
 
-        response = self.model.generate_content(contents)
-        return response.text
+        response = self.model.generate_content(
+            contents,
+            safety_settings=self.safety_settings
+        )
+        return self._get_response_text(response)
